@@ -1,4 +1,4 @@
-// sockstr-cli1.0.c
+// projeto-cli2.0.c
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -11,10 +11,9 @@
 #define exit_on_error(s,m) if ( s < 0 ) { perror(m); exit(1); }
 // Estrutura de Mensagem
 typedef struct {
-int id;
-char nome[100];
-int idade;
-} MsgCliente;
+char nome[50];
+char mensagem[500];
+} ChatMsg;
 main() {
 // Socket Client
 int s = socket ( PF_INET, SOCK_STREAM, 0 );
@@ -30,24 +29,21 @@ status=connect( s, (struct sockaddr*)&s_addr, sizeof(s_addr) );
 exit_on_error ( status, "connect");
 printf("Ligado ao servidor!\n");
 // Criar a estrutura
-MsgCliente m;
-printf("ID: ");
-scanf("%d", &m.id);
-getchar();
+while(1){
+ChatMsg m;
 printf("Nome:");
-fgets(m.nome, 100, stdin);
+fgets(m.nome, 50, stdin);
 m.nome[strcspn(m.nome, "\n")] = 0; //Remover \n
-printf("Idade; ");
-scanf("%d", &m.idade);
+printf("Mensagem:");
+fgets(m.mensagem, 500, stdin);
 // Enviar a struct
 int n = send(s, &m, sizeof(m), 0);
 exit_on_error(n, "send");
 // Receber a resposta
-char msg2[100];
-n = recv(s, msg2, sizeof(msg2), 0);
+char resposta[100];
+n = recv(s, resposta, sizeof(resposta), 0);
 exit_on_error(n, "recv");
-// Mostrar 
-printf("\nResposta servidor:\n");
-printf("%s\n", msg2);
+printf("Servidor: %s\n", resposta);
+}
 close(s);
 }
