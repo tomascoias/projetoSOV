@@ -1,3 +1,4 @@
+// projeto-server1.2.c
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -10,7 +11,10 @@
 #include<unistd.h>
 // uniformização do tratamento de erros
 #define exit_on_error(s,m) if ( s < 0 ) { perror(m); exit(1); }
-
+typedef struct{
+    char nome[50];
+    char mensagem[500];
+} ChatMsg;
 // estrutura para passar as sockets para as threads
 struct dados_ligacao {
     int socket_origem;
@@ -45,6 +49,10 @@ void *chat(void *argumento) {
     //encerrar corretamente as ligações quando o cliente de origem se desconectar 
     // ou se houver um erro na leitura da mensagem
     printf("Um cliente desconectou-se. A fechar ligacoes...\n");
+    ChatMsg aviso;
+    strcpy(aviso.nome, "SERVIDOR");
+    strcpy(aviso.mensagem, "Outro cliente saiu do chat.\n");    
+    send(destino,&aviso, sizeof(aviso), 0);
     close (origem);
     close (destino);
 

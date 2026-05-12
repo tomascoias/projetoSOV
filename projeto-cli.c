@@ -1,4 +1,4 @@
-// projeto-cli3.0.c
+// projeto-cli3.2.c
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -27,9 +27,14 @@ void *enviar_mensagens(void *arg){
   while(1){
     printf("Mensagem:");
     fgets(m.mensagem, 500, stdin);
+    if(strncmp(m.mensagem, "/sair", 5) == 0){
+        printf("A sair do chat...\n");
+        close(socket_client);
+        exit(0);
+    }
     int n = send(socket_client, &m, sizeof(m), 0);
     if (n <= 0){
-      print("Erro ao enviar mensagem.\n");
+      printf("Erro ao enviar mensagem.\n");
       break;
     }
   }
@@ -37,7 +42,7 @@ void *enviar_mensagens(void *arg){
 }
 
 //Thread receber mensagens
-void *receber_mensagens(void *args){
+void *receber_mensagens(void *arg){
   int socket_client = *(int *)arg;
   ChatMsg m;
 
@@ -54,7 +59,7 @@ void *receber_mensagens(void *args){
   }
   return NULL;
 }
-main() {
+int main() {
 // Socket Client
 int s = socket ( PF_INET, SOCK_STREAM, 0 );
 exit_on_error ( s, "socket");
