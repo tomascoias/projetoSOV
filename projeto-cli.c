@@ -1,4 +1,4 @@
-// projeto-cli3.2.c
+// projeto-cli3.0.c
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -9,6 +9,7 @@
 #include <netinet/in.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <termios.h>
 #define exit_on_error(s,m) if ( s < 0 ) { perror(m); exit(1); }
 // Estrutura de Mensagem
 typedef struct {
@@ -16,14 +17,11 @@ char nome[50];
 char mensagem[500];
 } ChatMsg;
 
+ChatMsg m;
+
 // Thread enviar mensagens
 void *enviar_mensagens(void *arg){
   int socket_client = *(int *)arg;
-  ChatMsg m;
-  printf("Nome: ");
-  fgets(m.nome, 50, stdin);
-  m.nome[strcspn(m.nome, "\n")] = 0; //Remover \n
-
   while(1){
     printf("Mensagem:");
     fgets(m.mensagem, 500, stdin);
@@ -44,16 +42,14 @@ void *enviar_mensagens(void *arg){
 //Thread receber mensagens
 void *receber_mensagens(void *arg){
   int socket_client = *(int *)arg;
-  ChatMsg m;
-
+  ChatMsg rm;
   while(1){
-    int n = recv(socket_client, &m, sizeof(m), 0);
+    int n = recv(socket_client, &rm, sizeof(rm), 0);
     if(n <= 0){
       printf("Servidor desconectado. \n");
       break;
     }
-
-    printf("\n[%s]: %s", m.nome, m.mensagem);
+    printf("\n[%s]: %s", rm.nome, rm.mensagem);
     printf("Mensagem: ");
     fflush(stdout);
   }
@@ -73,6 +69,20 @@ int status;
 status=connect( s, (struct sockaddr*)&s_addr, sizeof(s_addr) );
 exit_on_error ( status, "connect");
 printf("Ligado ao servidor!\n");
+
+while(strlen(m.nome) <= 0){
+    printf("Nome: ");
+    fgets(m.nome, 50, stdin);
+    m.nome[strcspn(m.nome, "\n")] = 0; //Remover \n
+  }
+//Enviar o nome para o server para comprar se caso for repetido e avisar que esta "Pronto" (ja inseriu o nome)
+send(s, &m, sizeof(m), 0);
+
+//Esperar pelo o servidor dar resposta
+recv(s, &m, sizeof(m), 0); 
+
+//Elimina o texto que o cliente escreve enquanto esta a espera
+tcflush(STDIN_FILENO, TCIFLUSH);
 
 // Threads
 pthread_t thread_enviar;
