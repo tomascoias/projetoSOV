@@ -3,11 +3,11 @@
 #include <errno.h>
 #include <string.h>
 #include <sys/types.h>
-#include <sys/socket.h>
-#include <pthread.h>
 #include <sys/un.h>
 #include <netinet/in.h>
 #include<unistd.h>
+#include <sys/socket.h>
+#include <pthread.h>
 // uniformização do tratamento de erros
 #define exit_on_error(s,m) if ( s < 0 ) { perror(m); exit(1); }
 typedef struct{
