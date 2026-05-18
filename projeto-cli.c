@@ -35,7 +35,7 @@ void *enviar_mensagens(void *arg){
     if(strncmp(m.mensagem, "/sair", 5) == 0){
         printf("A sair do chat...\n");
         close(socket_client);
-        break;
+        exit(0);
     }
     int n = send(socket_client, &m, sizeof(m), 0);
     if (n < 0){
@@ -55,8 +55,7 @@ void *receber_mensagens(void *arg){
     if(n <= 0){
       printf("Servidor desconectado. \n");
       close(socket_client);
-      pthread_cancel(thread_enviar);
-      break;
+      exit(0);
     }
     printf("\n[%s]: %s", rm.nome, rm.mensagem);
     printf("Mensagem: ");
@@ -96,12 +95,15 @@ int main() {
 
   //Enviar o nome para o server para comprar se caso for repetido e avisar que esta "Pronto" (ja inseriu o nome)
   send(s, &m, sizeof(m), 0);
+  printf("A espera de um outro cliente entrar no chat...\n");
 
   //Esperar pelo o servidor dar resposta
   recv(s, &m, sizeof(m), 0); 
 
   //Elimina o texto que o cliente escreve enquanto esta a espera
   tcflush(STDIN_FILENO, TCIFLUSH);
+
+  printf("Chat Iniciado!\n");
 
   // Thread enviar
   pthread_create( &thread_enviar, NULL, enviar_mensagens, (void *)&s);
