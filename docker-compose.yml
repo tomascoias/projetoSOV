@@ -1,0 +1,41 @@
+services:
+  servidor-chat:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    container_name: servidor_container
+    # O servidor corre em background e expõe a porta
+    ports:
+      - "5678:5678"
+    networks:
+      - chat-net
+
+  cliente-a:
+    build:
+      context: .
+      dockerfile: Dockerfile.client
+    container_name: cliente_a_container
+    # Permite a interação com o teclado/terminal (fgets)
+    stdin_open: true
+    tty: true
+    depends_on:
+      - servidor-chat
+    networks:
+      - chat-net
+
+  cliente-b:
+    build:
+      context: .
+      dockerfile: Dockerfile.client
+    container_name: cliente_b_container
+    # Permite a interação com o teclado/terminal (fgets)
+    stdin_open: true
+    tty: true
+    depends_on:
+      - servidor-chat
+    networks:
+      - chat-net
+
+networks:
+  chat-net:
+    driver: bridge

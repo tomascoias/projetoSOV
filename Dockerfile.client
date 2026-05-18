@@ -1,0 +1,14 @@
+# GCC para compilar código C
+FROM gcc:latest
+
+# Diretório do trabalho
+WORKDIR  /usr/src/app
+
+# Copia o código fonte do servidor para o container
+COPY project-cli.c .
+
+# Codigo para compilar com ligacao a biblioteca de threads
+RUN gcc project-cli.c -o client -pthread
+
+# Comando para correr 
+CMD ["./client"]

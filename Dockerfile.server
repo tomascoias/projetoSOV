@@ -1,0 +1,17 @@
+# GCC para compilar código C
+FROM gcc:latest
+
+# Diretório do trabalho
+WORKDIR /usr/src/app
+
+# Copia o código fonte do servidor para o container
+COPY project-serv.c .
+
+# Codigo para compilar com ligacao a biblioteca de threads
+RUN gcc project-serv.c -o server -pthread
+
+# Expoe a porta que o servidor usa
+EXPOSE 5678
+
+# Comando para correr 
+CMD ["./server"]

@@ -10,8 +10,8 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <termios.h>
-#include <arpa/inet.h> // ADICIONADO: Necessário para estruturas de rede
-#include <netdb.h>     // ADICIONADO: Necessário para a função gethostbyname()
+#include <arpa/inet.h> 
+#include <netdb.h>   
 
 #define exit_on_error(s,m) if ( s < 0 ) { perror(m); exit(1); }
 
@@ -70,7 +70,6 @@ int main() {
   int s = socket ( PF_INET, SOCK_STREAM, 0 );
   exit_on_error ( s, "socket");
 
-  // ADICIONADO: Descobrir o IP da máquina chamada "servidor" na rede do Docker
   struct hostent *host = gethostbyname("servidor");
   if (host == NULL) {
       perror("Erro ao procurar o servidor na rede Docker");
@@ -80,7 +79,6 @@ int main() {
   // Endereco do servidor
   struct sockaddr_in s_addr;
   s_addr.sin_family = AF_INET;
-  // ADICIONADO: Copiar o IP descoberto para as definições de conexão
   s_addr.sin_addr = *((struct in_addr **)host->h_addr_list)[0];
   s_addr.sin_port = htons(5678);
 
@@ -116,5 +114,5 @@ int main() {
   pthread_join(thread_receber, NULL);
 
   close(s);
-  return 0; // ALTERADO: return 0 ativado para fechar corretamente o processo
+  return 0; 
 }
