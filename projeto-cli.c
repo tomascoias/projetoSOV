@@ -31,7 +31,7 @@ void *enviar_mensagens(void *arg){
         exit(0);
     }
     int n = send(socket_client, &m, sizeof(m), 0);
-    if (n <= 0){
+    if (n < 0){
       printf("Erro ao enviar mensagem.\n");
       break;
     }
@@ -88,20 +88,10 @@ tcflush(STDIN_FILENO, TCIFLUSH);
 pthread_t thread_enviar;
 pthread_t thread_receber;
 // Thread enviar
-pthread_create(
-  &thread_enviar,
-  NULL,
-  enviar_mensagens,
-  (void *)&s
-);
+pthread_create(&thread_enviar, NULL, enviar_mensagens, (void *)&s);
 
 // Thread receber
-pthread_create(
-  &thread_receber,
-  NULL,
-  receber_mensagens,
-  (void *)&s
-);
+pthread_create(&thread_receber, NULL, receber_mensagens, (void *)&s);
 
 // Esperar threads
 pthread_join(thread_enviar, NULL);
