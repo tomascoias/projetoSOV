@@ -33,7 +33,7 @@ void *chat(void *argumento) {
     //pois extraimos os valores das sockets para variáveis locais
     free(dados);
 
-    char buffer[1000];
+    char buffer[sizeof(ChatMsg)];
     int bytes_lidos;
 
 

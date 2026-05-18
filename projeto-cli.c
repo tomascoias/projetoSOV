@@ -70,7 +70,7 @@ int main() {
   int s = socket ( PF_INET, SOCK_STREAM, 0 );
   exit_on_error ( s, "socket");
 
-  struct hostent *host = gethostbyname("servidor");
+  struct hostent *host = gethostbyname("servidor-chat");
   if (host == NULL) {
       perror("Erro ao procurar o servidor na rede Docker");
       exit(1);
@@ -114,5 +114,5 @@ int main() {
   pthread_join(thread_receber, NULL);
 
   close(s);
-  return 0; 
+  return 0;
 }
