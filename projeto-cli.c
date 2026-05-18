@@ -10,11 +10,15 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <termios.h>
+#include <arpa/inet.h> // ADICIONADO: Necessário para estruturas de rede
+#include <netdb.h>     // ADICIONADO: Necessário para a função gethostbyname()
+
 #define exit_on_error(s,m) if ( s < 0 ) { perror(m); exit(1); }
+
 // Estrutura de Mensagem
 typedef struct {
-char nome[50];
-char mensagem[500];
+  char nome[50];
+  char mensagem[500];
 } ChatMsg;
 
 ChatMsg m;
@@ -60,45 +64,57 @@ void *receber_mensagens(void *arg){
   }
   return NULL;
 }
-int main() {
-// Socket Client
-int s = socket ( PF_INET, SOCK_STREAM, 0 );
-exit_on_error ( s, "socket");
-// Endereco do servidor
-struct sockaddr_in s_addr;
-s_addr.sin_family = AF_INET;
-s_addr.sin_addr.s_addr = inet_addr ( "127.0.0.1" );
-s_addr.sin_port = htons(5678);
-// Connect
-int status;
-status=connect( s, (struct sockaddr*)&s_addr, sizeof(s_addr) );
-exit_on_error ( status, "connect");
-printf("Ligado ao servidor!\n");
 
-while(strlen(m.nome) <= 0){
+int main() {
+  // Socket Client
+  int s = socket ( PF_INET, SOCK_STREAM, 0 );
+  exit_on_error ( s, "socket");
+
+  // ADICIONADO: Descobrir o IP da máquina chamada "servidor" na rede do Docker
+  struct hostent *host = gethostbyname("servidor");
+  if (host == NULL) {
+      perror("Erro ao procurar o servidor na rede Docker");
+      exit(1);
+  }
+
+  // Endereco do servidor
+  struct sockaddr_in s_addr;
+  s_addr.sin_family = AF_INET;
+  // ADICIONADO: Copiar o IP descoberto para as definições de conexão
+  s_addr.sin_addr = *((struct in_addr **)host->h_addr_list)[0];
+  s_addr.sin_port = htons(5678);
+
+  // Connect
+  int status;
+  status=connect( s, (struct sockaddr*)&s_addr, sizeof(s_addr) );
+  exit_on_error ( status, "connect");
+  printf("Ligado ao servidor!\n");
+
+  while(strlen(m.nome) <= 0){
     printf("Nome: ");
     fgets(m.nome, 50, stdin);
     m.nome[strcspn(m.nome, "\n")] = 0; //Remover \n
   }
-//Enviar o nome para o server para comprar se caso for repetido e avisar que esta "Pronto" (ja inseriu o nome)
-send(s, &m, sizeof(m), 0);
 
-//Esperar pelo o servidor dar resposta
-recv(s, &m, sizeof(m), 0); 
+  //Enviar o nome para o server para comprar se caso for repetido e avisar que esta "Pronto" (ja inseriu o nome)
+  send(s, &m, sizeof(m), 0);
 
-//Elimina o texto que o cliente escreve enquanto esta a espera
-tcflush(STDIN_FILENO, TCIFLUSH);
+  //Esperar pelo o servidor dar resposta
+  recv(s, &m, sizeof(m), 0); 
 
-// Thread enviar
-pthread_create( &thread_enviar, NULL, enviar_mensagens, (void *)&s);
+  //Elimina o texto que o cliente escreve enquanto esta a espera
+  tcflush(STDIN_FILENO, TCIFLUSH);
 
-// Thread receber
-pthread_create( &thread_receber, NULL, receber_mensagens, (void *)&s);
+  // Thread enviar
+  pthread_create( &thread_enviar, NULL, enviar_mensagens, (void *)&s);
 
-// Esperar threads
-pthread_join(thread_enviar, NULL);
-pthread_join(thread_receber, NULL);
+  // Thread receber
+  pthread_create( &thread_receber, NULL, receber_mensagens, (void *)&s);
 
-close(s);
-//return 0;
+  // Esperar threads
+  pthread_join(thread_enviar, NULL);
+  pthread_join(thread_receber, NULL);
+
+  close(s);
+  return 0; // ALTERADO: return 0 ativado para fechar corretamente o processo
 }
