@@ -19,6 +19,9 @@ char mensagem[500];
 
 ChatMsg m;
 
+pthread_t thread_enviar;
+pthread_t thread_receber;
+
 // Thread enviar mensagens
 void *enviar_mensagens(void *arg){
   int socket_client = *(int *)arg;
@@ -47,6 +50,8 @@ void *receber_mensagens(void *arg){
     int n = recv(socket_client, &rm, sizeof(rm), 0);
     if(n <= 0){
       printf("Servidor desconectado. \n");
+      close(socket_client);
+      pthread_cancel(thread_enviar);
       break;
     }
     printf("\n[%s]: %s", rm.nome, rm.mensagem);
@@ -84,29 +89,16 @@ recv(s, &m, sizeof(m), 0);
 //Elimina o texto que o cliente escreve enquanto esta a espera
 tcflush(STDIN_FILENO, TCIFLUSH);
 
-// Threads
-pthread_t thread_enviar;
-pthread_t thread_receber;
 // Thread enviar
-pthread_create(
-  &thread_enviar,
-  NULL,
-  enviar_mensagens,
-  (void *)&s
-);
+pthread_create( &thread_enviar, NULL, enviar_mensagens, (void *)&s);
 
 // Thread receber
-pthread_create(
-  &thread_receber,
-  NULL,
-  receber_mensagens,
-  (void *)&s
-);
+pthread_create( &thread_receber, NULL, receber_mensagens, (void *)&s);
 
 // Esperar threads
 pthread_join(thread_enviar, NULL);
 pthread_join(thread_receber, NULL);
 
 close(s);
-return 0;
+//return 0;
 }
