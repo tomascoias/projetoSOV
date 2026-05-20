@@ -18,6 +18,7 @@ typedef struct{
 struct dados_ligacao {
     int socket_origem;
     int socket_destino;
+    ChatMsg dadosDestino;
 };
 
 ChatMsg aviso;
@@ -25,12 +26,16 @@ ChatMsg aviso;
 int cliente_espera = -1;
 ChatMsg dadosEspera;
 
+pthread_mutex_t mutex_cliente = PTHREAD_MUTEX_INITIALIZER;
+
 // função executada pelas threads para receber e enviar mensagens para os clientes
 void *chat(void *argumento) {
     //fazer o casting do argumento genérico para a estrutura de dados_ligacao
     struct dados_ligacao *dados = (struct dados_ligacao *) argumento;
     int origem = dados->socket_origem;
     int destino = dados->socket_destino;
+
+    ChatMsg dadosDestino = dados->dadosDestino;
 
     //libertar a memória alocada pela estrutura, porque já não é necessária
     //pois extraimos os valores das sockets para variáveis locais
@@ -44,23 +49,34 @@ void *chat(void *argumento) {
     while ( (bytes_lidos = recv( origem, buffer, sizeof(buffer), 0)) > 0 ) {
         int bytes_enviados = send( destino, buffer, bytes_lidos, 0);
         //tratamento de erro no envio da mensagem para o cliente de destino
-        if (bytes_enviados < 0) {
-            perror("Erro ao enviar mensagem!");
-            break;
+        if (bytes_enviados <= 0) {
+            pthread_exit(NULL);
         }
     }
     
-    //encerrar corretamente as ligações quando o cliente de origem se desconectar 
-    // ou se houver um erro na leitura da mensagem
     printf("Um cliente desconectou-se.\n");
-    strcpy(aviso.mensagem, "Outro cliente saiu do chat.\n");    
-    send(destino,&aviso, sizeof(aviso), 0);
-    close (origem);
+    
+    /* fechar corretamente o cliente que saiu */
+    shutdown(origem, SHUT_RDWR);
+    close(origem);
 
-    shutdown(destino, SHUT_RDWR);
-    close(destino);
+    /* guardar o cliente que ficou */
+    pthread_mutex_lock(&mutex_cliente);
 
-    return NULL;
+    cliente_espera = destino;
+    dadosEspera = dadosDestino;
+
+    pthread_mutex_unlock(&mutex_cliente);
+
+    /* avisar o cliente que ficou */
+    strcpy(aviso.mensagem, "À espera de um novo cliente.\n");
+
+    if(send(destino, &aviso, sizeof(aviso), 0) <= 0){
+        close(destino);
+        cliente_espera = -1;
+    }
+
+    pthread_exit(NULL);
 }
 
 int main() {
@@ -95,10 +111,12 @@ int main() {
         recv(novo_cliente, &dadosNovo, sizeof(dadosNovo), 0);
         printf("Novo cliente ligado!\n");
         //Nao existe nenhum cliente em espera (Servidor Iniciado pela 1º Vez)
+        pthread_mutex_lock(&mutex_cliente);
         if(cliente_espera == -1){
             cliente_espera = novo_cliente;
             dadosEspera = dadosNovo;
             printf("Cliente em espera...\n");
+            pthread_mutex_unlock(&mutex_cliente);
         }
         // Já existe alguem à espera
         else{
@@ -114,6 +132,7 @@ int main() {
             //Ja fazemos o recv no inicio e tratamos dos error ao criar (retirar)
 
             cliente_espera = -1;
+            pthread_mutex_unlock(&mutex_cliente);
             
             //Verifica se tem os nomes iguais, se tiver adiciona um "id" a frente.
             if(strcmp(dadosClienteA.nome, dadosClienteB.nome) == 0){
@@ -132,6 +151,7 @@ int main() {
             struct dados_ligacao *dados_threadAB = malloc(sizeof(struct dados_ligacao));
             dados_threadAB->socket_origem = cliente_A;
             dados_threadAB->socket_destino = cliente_B;
+            dados_threadAB->dadosDestino = dadosClienteB;
             pthread_create(&id_threadAB, NULL, chat, (void *) dados_threadAB);
 
             //lançar a thread 2 (Cliente B -> Cliente A)
@@ -139,6 +159,7 @@ int main() {
             struct dados_ligacao *dados_threadBA = malloc(sizeof(struct dados_ligacao));
             dados_threadBA->socket_origem = cliente_B;
             dados_threadBA->socket_destino = cliente_A;
+            dados_threadBA->dadosDestino = dadosClienteA;
             pthread_create(&id_threadBA, NULL, chat, (void *) dados_threadBA);
 
             //o processo principal aguarda que as threads terminem)
