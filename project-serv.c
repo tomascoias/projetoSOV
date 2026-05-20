@@ -27,7 +27,7 @@ ChatMsg aviso;
 int cliente_espera = -1;
 ChatMsg dadosEspera;
 
-// Mutex usado para proteger acesso concorrente
+// Mutex usado para proteger acesso multiplo/concorrente
 pthread_mutex_t mutex_cliente = PTHREAD_MUTEX_INITIALIZER;
 
 // função executada pelas threads para receber e enviar mensagens para os clientes
@@ -73,6 +73,7 @@ void *chat(void *argumento) {
     // Avisar o cliente que ficou
     strcpy(aviso.mensagem, "O outro cliente saiu! À espera de um novo cliente.\n");
 
+    // Verifica se envia o "aviso" se nao enviar (Erro, Ligacao Fechada) fecha o cliente destino
     if(send(destino, &aviso, sizeof(aviso), 0) <= 0){
         close(destino);
         cliente_espera = -1;
@@ -113,14 +114,17 @@ int main() {
         recv(novo_cliente, &dadosNovo, sizeof(dadosNovo), 0);
         printf("Novo cliente ligado!\n");
 
-        //Verificar se existe cliente à espera
+        // Bloqueia o acesso às variáveis partilhadas para evitar conflitos entre threads
         pthread_mutex_lock(&mutex_cliente);
-        
+
         //Nao existe nenhum cliente em espera (Servidor Iniciado pela 1º Vez)
         if(cliente_espera == -1){
+            // Guarda o cliente atual em espera
             cliente_espera = novo_cliente;
+            // Guarda os dados do cliente em espera
             dadosEspera = dadosNovo;
             printf("Cliente em espera...\n");
+            // Liberta o mutex para permitir que outras threads acedam à variável partilhada
             pthread_mutex_unlock(&mutex_cliente);
         }
         // Já existe alguem à espera
@@ -134,9 +138,9 @@ int main() {
             int cliente_B = novo_cliente;
             ChatMsg dadosClienteB = dadosNovo;
             printf("Client B ligado!\n");
-            //Ja fazemos o recv no inicio e tratamos dos error ao criar (retirar)
-
+            
             cliente_espera = -1;
+            // Liberta o mutex para permitir que outras threads acedam à variável partilhada
             pthread_mutex_unlock(&mutex_cliente);
             
             //Verifica se tem os nomes iguais, se tiver adiciona um "id" a frente.
@@ -148,8 +152,6 @@ int main() {
             //Envia aos 2 clientes uma mensagem/aviso com os seus nomes, para se caso haver alguma alteracao
             send(cliente_A,&dadosClienteA,sizeof(dadosClienteA), 0);
             send(cliente_B,&dadosClienteB,sizeof(dadosClienteB), 0);
-
-            printf("O chat vai iniciar! Os clientes podem começar a enviar mensagens...\n");
 
             //lançar a thread 1 (Cliente A -> Cliente B)
             pthread_t id_threadAB;
@@ -167,7 +169,7 @@ int main() {
             dados_threadBA->dadosDestino = dadosClienteA;
             pthread_create(&id_threadBA, NULL, chat, (void *) dados_threadBA);
 
-            //o processo principal aguarda que as threads terminem
+            //Funcionam independentes e nao faz o programa esperar por elas
             pthread_detach(id_threadAB);
             pthread_detach(id_threadBA);
         }
