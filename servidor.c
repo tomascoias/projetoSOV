@@ -21,11 +21,13 @@ struct dados_ligacao {
     ChatMsg dadosDestino;
 };
 
+// Variaveis Globais
 ChatMsg aviso;
 
 int cliente_espera = -1;
 ChatMsg dadosEspera;
 
+// Mutex usado para proteger acesso concorrente
 pthread_mutex_t mutex_cliente = PTHREAD_MUTEX_INITIALIZER;
 
 // função executada pelas threads para receber e enviar mensagens para os clientes
@@ -56,11 +58,11 @@ void *chat(void *argumento) {
     
     printf("Um cliente desconectou-se.\n");
     
-    /* fechar corretamente o cliente que saiu */
+    // Fechar corretamente o cliente que saiu 
     shutdown(origem, SHUT_RDWR);
     close(origem);
 
-    /* guardar o cliente que ficou */
+    // Guardar Cliente que ficou
     pthread_mutex_lock(&mutex_cliente);
 
     cliente_espera = destino;
@@ -68,8 +70,8 @@ void *chat(void *argumento) {
 
     pthread_mutex_unlock(&mutex_cliente);
 
-    /* avisar o cliente que ficou */
-    strcpy(aviso.mensagem, "À espera de um novo cliente.\n");
+    // Avisar o cliente que ficou
+    strcpy(aviso.mensagem, "O outro cliente saiu! À espera de um novo cliente.\n");
 
     if(send(destino, &aviso, sizeof(aviso), 0) <= 0){
         close(destino);
@@ -110,8 +112,11 @@ int main() {
         ChatMsg dadosNovo;
         recv(novo_cliente, &dadosNovo, sizeof(dadosNovo), 0);
         printf("Novo cliente ligado!\n");
-        //Nao existe nenhum cliente em espera (Servidor Iniciado pela 1º Vez)
+
+        //Verificar se existe cliente à espera
         pthread_mutex_lock(&mutex_cliente);
+        
+        //Nao existe nenhum cliente em espera (Servidor Iniciado pela 1º Vez)
         if(cliente_espera == -1){
             cliente_espera = novo_cliente;
             dadosEspera = dadosNovo;
@@ -162,7 +167,7 @@ int main() {
             dados_threadBA->dadosDestino = dadosClienteA;
             pthread_create(&id_threadBA, NULL, chat, (void *) dados_threadBA);
 
-            //o processo principal aguarda que as threads terminem)
+            //o processo principal aguarda que as threads terminem
             pthread_detach(id_threadAB);
             pthread_detach(id_threadBA);
         }
