@@ -22,6 +22,9 @@ struct dados_ligacao {
 
 ChatMsg aviso;
 
+int cliente_espera = -1;
+ChatMsg dadosEspera;
+
 // função executada pelas threads para receber e enviar mensagens para os clientes
 void *chat(void *argumento) {
     //fazer o casting do argumento genérico para a estrutura de dados_ligacao
@@ -49,11 +52,15 @@ void *chat(void *argumento) {
     
     //encerrar corretamente as ligações quando o cliente de origem se desconectar 
     // ou se houver um erro na leitura da mensagem
-    printf("Um cliente desconectou-se. A fechar ligacoes...\n");
+    printf("Um cliente desconectou-se.\n");
     strcpy(aviso.mensagem, "Outro cliente saiu do chat.\n");    
     send(destino,&aviso, sizeof(aviso), 0);
     close (origem);
-    close (destino);
+
+    cliente_espera = destino;
+
+    strcpy(aviso.mensagem, "À espera de um novo cliente.\n");    
+    send(destino,&aviso, sizeof(aviso), 0);
 
     return NULL;
 }
@@ -83,53 +90,64 @@ int main() {
     exit_on_error (status, "Erro no listen");
 
     printf("Servidor à escuta na porta 5678. À espera de clientes...\n");
+    while(1){
+        int novo_cliente = accept(sock, NULL, NULL);
+        exit_on_error (novo_cliente, "Erro no accept novo cliente!");
+        ChatMsg dadosNovo;
+        recv(novo_cliente, &dadosNovo, sizeof(dadosNovo), 0);
+        printf("Novo cliente ligado!\n");
+        //Nao existe nenhum cliente em espera (Servidor Iniciado pela 1º Vez)
+        if(cliente_espera == -1){
+            cliente_espera = novo_cliente;
+            dadosEspera = dadosNovo;
+            printf("Cliente em espera...\n");
+        }
+        // Já existe alguem à espera
+        else{
+            //aceitar os dois clientes que se vão ligar ao servidor.
+            //o servidor bloqueia nesta fase até que os clientes se liguem e que tenham nomes.
+            int cliente_A = cliente_espera;
+            ChatMsg dadosClienteA = dadosEspera;
+            printf("Cliente A ligado!\n");
 
-    //aceitar os dois clientes que se vão ligar ao servidor.
-    //o servidor bloqueia nesta fase até que os clientes se liguem e que tenham nomes.
-    int cliente_A = accept(sock, NULL, NULL);
-    exit_on_error (cliente_A, "Erro no accept_A");
-    ChatMsg dadosClienteA;
-    recv(cliente_A, &dadosClienteA, sizeof(dadosClienteA), 0);
-    printf("Cliente A ligado!\n");
+            int cliente_B = novo_cliente;
+            ChatMsg dadosClienteB = dadosNovo;
+            printf("Client B ligado!\n");
+            //Ja fazemos o recv no inicio e tratamos dos error ao criar (retirar)
 
-    int cliente_B = accept(sock, NULL, NULL);
-    exit_on_error (cliente_B, "Erro no accept_B");
-    ChatMsg dadosClienteB;
-    recv(cliente_B, &dadosClienteB, sizeof(dadosClienteB), 0);
-    printf("Client B ligado!\n");
+            cliente_espera = -1;
+            
+            //Verifica se tem os nomes iguais, se tiver adiciona um "id" a frente.
+            if(strcmp(dadosClienteA.nome, dadosClienteB.nome) == 0){
+                strcat(dadosClienteA.nome, "#1");
+                strcat(dadosClienteB.nome, "#2");
+            }    
 
-    //Verifica se tem os nomes iguais, se tiver adiciona um "id" a frente.
-    if(strcmp(dadosClienteA.nome, dadosClienteB.nome) == 0){
-        strcat(dadosClienteA.nome, "#1");
-        strcat(dadosClienteB.nome, "#2");
+            //Envia aos 2 clientes uma mensagem/aviso com os seus nomes, para se caso haver alguma alteracao
+            send(cliente_A,&dadosClienteA,sizeof(dadosClienteA), 0);
+            send(cliente_B,&dadosClienteB,sizeof(dadosClienteB), 0);
+
+            printf("O chat vai iniciar! Os clientes podem começar a enviar mensagens...\n");
+
+            //lançar a thread 1 (Cliente A -> Cliente B)
+            pthread_t id_threadAB;
+            struct dados_ligacao *dados_threadAB = malloc(sizeof(struct dados_ligacao));
+            dados_threadAB->socket_origem = cliente_A;
+            dados_threadAB->socket_destino = cliente_B;
+            pthread_create(&id_threadAB, NULL, chat, (void *) dados_threadAB);
+
+            //lançar a thread 2 (Cliente B -> Cliente A)
+            pthread_t id_threadBA;
+            struct dados_ligacao *dados_threadBA = malloc(sizeof(struct dados_ligacao));
+            dados_threadBA->socket_origem = cliente_B;
+            dados_threadBA->socket_destino = cliente_A;
+            pthread_create(&id_threadBA, NULL, chat, (void *) dados_threadBA);
+
+            //o processo principal aguarda que as threads terminem)
+            pthread_detach(id_threadAB);
+            pthread_detach(id_threadBA);
+        }
     }
-
-    //Envia aos 2 clientes uma mensagem/aviso com os seus nomes, para se caso haver alguma alteracao
-    send(cliente_A,&dadosClienteA,sizeof(dadosClienteA), 0);
-    send(cliente_B,&dadosClienteB,sizeof(dadosClienteB), 0);
-
-    printf("O chat vai iniciar! Os clientes podem começar a enviar mensagens...\n");
-
-    //lançar a thread 1 (Cliente A -> Cliente B)
-    pthread_t id_threadAB;
-    struct dados_ligacao *dados_threadAB = malloc(sizeof(struct dados_ligacao));
-    dados_threadAB->socket_origem = cliente_A;
-    dados_threadAB->socket_destino = cliente_B;
-    pthread_create(&id_threadAB, NULL, chat, (void *) dados_threadAB);
-
-    //lançar a thread 2 (Cliente B -> Cliente A)
-    pthread_t id_threadBA;
-    struct dados_ligacao *dados_threadBA = malloc(sizeof(struct dados_ligacao));
-    dados_threadBA->socket_origem = cliente_B;
-    dados_threadBA->socket_destino = cliente_A;
-    pthread_create(&id_threadBA, NULL, chat, (void *) dados_threadBA);
-
-    //o processo principal aguarda que as threads terminem)
-    pthread_join(id_threadAB, NULL);
-    pthread_join(id_threadBA, NULL);
-
-    //libertar os recursos do SO e encerrar o servidor
-    printf("Servidor a encerrar...\n");
     close(sock);
     return 0;
 }
