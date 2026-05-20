@@ -60,11 +60,8 @@ void *receber_mensagens(void *arg){
         if(cliente_saiu == 1){
             pthread_exit(NULL);
         }
-        printf("À espera de outro cliente...\n");
-
-        while(1){
-            sleep(1);
-        }
+        printf("\nChat terminado!\n");
+        pthread_exit(NULL);
     }
     printf("\n[%s]: %s", rm.nome, rm.mensagem);
     printf("Mensagem: ");

@@ -5,7 +5,7 @@
 #include <sys/types.h>
 #include <sys/un.h>
 #include <netinet/in.h>
-#include<unistd.h>
+#include <unistd.h>
 #include <sys/socket.h>
 #include <pthread.h>
 // uniformização do tratamento de erros
@@ -57,10 +57,8 @@ void *chat(void *argumento) {
     send(destino,&aviso, sizeof(aviso), 0);
     close (origem);
 
-    cliente_espera = destino;
-
-    strcpy(aviso.mensagem, "À espera de um novo cliente.\n");    
-    send(destino,&aviso, sizeof(aviso), 0);
+    shutdown(destino, SHUT_RDWR);
+    close(destino);
 
     return NULL;
 }
